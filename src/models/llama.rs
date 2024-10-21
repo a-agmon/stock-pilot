@@ -25,8 +25,8 @@ impl Llama321B {
         let cache =
             llama_model::Cache::new(true, DType::F16, &config, &Device::Cpu)?;
         let tokenizer_file = Path::new("model/tokenizer.json");
-        let tokenizer =
-            Tokenizer::from_file(tokenizer_file).map_err(Error::msg)?;
+        let tokenizer = Tokenizer::from_file(tokenizer_file)
+            .map_err(|e| anyhow::anyhow!(e))?;
 
         let local_model_path =
             std::path::PathBuf::from("model/model.safetensors");
@@ -53,7 +53,7 @@ impl Llama321B {
         &mut self,
         prompt: &str,
         sample_len: usize,
-    ) -> Result<String> {
+    ) -> anyhow::Result<String> {
         self.generate(
             prompt,
             1.0,
@@ -76,16 +76,15 @@ impl Llama321B {
         sample_len: usize,
         repeat_penalty: f32,
         repeat_last_n: usize,
-    ) -> Result<String> {
+    ) -> anyhow::Result<String> {
         let mut generated_buffer: Vec<String> = Vec::new();
         let mut tokens = self
             .tokenizer
             .encode(prompt, true)
-            .map_err(Error::msg)?
+            .map_err(|e| anyhow::anyhow!(e))?
             .get_ids()
             .to_vec();
         let mut tokenizer = TokenOutputStream::new(self.tokenizer.clone());
-
         let mut logits_processor = {
             let temperature = temperature;
             let sampling = if temperature <= 0. {
@@ -102,8 +101,14 @@ impl Llama321B {
             };
             LogitsProcessor::from_sampling(seed, sampling)
         };
-
         let mut index_pos = 0;
+        self.cache = llama_model::Cache::new(
+            true,
+            DType::F16,
+            &self.config,
+            &Device::Cpu,
+        )?;
+
         for index in 0..sample_len {
             let (context_size, context_index) =
                 if self.cache.use_kv_cache && index > 0 {
@@ -130,7 +135,6 @@ impl Llama321B {
 
             let next_token = logits_processor.sample(&logits)?;
             tokens.push(next_token);
-
             let eos_token = self.eos_token();
 
             match eos_token {
@@ -150,10 +154,13 @@ impl Llama321B {
                 generated_buffer.push(t);
             }
         }
-        if let Some(rest) = tokenizer.decode_rest().map_err(Error::msg)? {
+        if let Some(rest) =
+            tokenizer.decode_rest().map_err(|e| anyhow::anyhow!(e))?
+        {
             generated_buffer.push(rest);
         }
         let generated_text = generated_buffer.join("");
+        tokenizer.clear();
         Ok(generated_text)
     }
 
