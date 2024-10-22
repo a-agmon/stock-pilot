@@ -1,4 +1,3 @@
-use dialoguer::{theme::ColorfulTheme, Input};
 use futures::{stream, FutureExt, StreamExt};
 use indicatif::{ProgressBar, ProgressStyle};
 use models::{prompts, Llama321B};
@@ -22,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
     term.write_line(&format!("{}", style("Hello, I'm TickerPilot, ask me anything about performance of stocks!").green().bright()))?;
 
     loop {
-        term.write_line(&format!("{}", style("What is your question for me? (Be sure to include the relevant date range):").bold().yellow()))?;
+        term.write_line(&format!("{}", style("What would you like to know about the stock market? (Be sure to include the relevant stock and date range):").bold().yellow()))?;
         let query = term.read_line()?;
         let pb = ProgressBar::new(3).with_style(ProgressStyle::with_template(
             "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
@@ -44,7 +43,10 @@ async fn main() -> anyhow::Result<()> {
         pb.inc(1);
         let elapsed = pb.elapsed();
         pb.with_elapsed(elapsed).finish_with_message("Done!");
-        term.write_line(&format!("\n Answer:\n {}", style(answer).cyan()))?;
+        term.write_line(&format!(
+            "\n Answer:\n {}",
+            style(answer).cyan().bright()
+        ))?;
     }
 }
 
