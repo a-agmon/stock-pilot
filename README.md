@@ -5,7 +5,7 @@ It allows users to ask questions about stock performance and receive insightful 
 Its implemented in Rust using [Hugging Face Candle lib](https://github.com/huggingface/candle) and the model was fine-tuned using [Unsloth](https://unsloth.ai/).
 
 
-![animated gif](./assets/tickerpilot.gif)
+![animated gif](assets/tickerpilot.gif)
 
 
 ## Features
