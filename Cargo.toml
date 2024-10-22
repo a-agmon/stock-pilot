@@ -15,3 +15,6 @@ chrono = { version = "0.4.38" }
 reqwest = { version = "0.12.8", features = ["json"] }
 tokio = { version = "1.40.0", features = ["full"] }
 futures = { version = "0.3.31" }
+dialoguer = "0.11.0"
+indicatif = "0.17.8"
+console = { version = "0.15.8", features = ["windows-console-colors"] }
