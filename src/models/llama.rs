@@ -52,11 +52,12 @@ impl Llama321B {
     pub fn generate_with_default(
         &mut self,
         prompt: &str,
+        temperature: f64,
         sample_len: usize,
     ) -> anyhow::Result<String> {
         self.generate(
             prompt,
-            1.0,
+            temperature,
             Some(50),
             Some(0.95),
             299792458,
