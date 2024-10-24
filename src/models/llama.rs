@@ -9,6 +9,7 @@ use candle_transformers::{
 use llama_model::{Llama, LlamaConfig};
 use std::path::Path;
 use tokenizers::Tokenizer;
+use tokio::sync::mpsc;
 
 pub struct Llama321B {
     model: Llama,
@@ -49,11 +50,12 @@ impl Llama321B {
         })
     }
 
-    pub fn generate_with_default(
+    pub async fn generate_with_default(
         &mut self,
         prompt: &str,
         temperature: f64,
         sample_len: usize,
+        stream_channel: Option<mpsc::Sender<String>>,
     ) -> anyhow::Result<String> {
         self.generate(
             prompt,
@@ -64,10 +66,12 @@ impl Llama321B {
             sample_len,
             1.0,
             64,
+            stream_channel,
         )
+        .await
     }
 
-    pub fn generate(
+    pub async fn generate(
         &mut self,
         prompt: &str,
         temperature: f64,
@@ -77,6 +81,7 @@ impl Llama321B {
         sample_len: usize,
         repeat_penalty: f32,
         repeat_last_n: usize,
+        stream_channel: Option<mpsc::Sender<String>>,
     ) -> anyhow::Result<String> {
         let mut generated_buffer: Vec<String> = Vec::new();
         let mut tokens = self
@@ -152,13 +157,24 @@ impl Llama321B {
                 _ => (),
             }
             if let Some(t) = tokenizer.next_token(next_token)? {
-                generated_buffer.push(t);
+                //generated_buffer.push(t);
+                Self::add_token(
+                    t,
+                    &mut generated_buffer,
+                    stream_channel.clone(),
+                )
+                .await?;
             }
         }
         if let Some(rest) =
             tokenizer.decode_rest().map_err(|e| anyhow::anyhow!(e))?
         {
-            generated_buffer.push(rest);
+            Self::add_token(
+                rest,
+                &mut generated_buffer,
+                stream_channel.clone(),
+            )
+            .await?;
         }
         let generated_text = generated_buffer.join("");
         tokenizer.clear();
@@ -171,5 +187,17 @@ impl Llama321B {
                 .token_to_id("</s>")
                 .map(llama_model::LlamaEosToks::Single)
         })
+    }
+
+    async fn add_token(
+        token: String,
+        buffer: &mut Vec<String>,
+        stream_channel: Option<mpsc::Sender<String>>,
+    ) -> anyhow::Result<()> {
+        buffer.push(token.clone());
+        if let Some(ref stream_channel) = stream_channel {
+            stream_channel.send(token).await?;
+        }
+        Ok(())
     }
 }
